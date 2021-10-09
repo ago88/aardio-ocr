@@ -4,7 +4,7 @@
 一款调用百度高精度文字识别API的简易OCR工具，直接调用微信截图DLL实现截图功能
 
 #### 软件界面
-![输入图片说明](https://images.gitee.com/uploads/images/2021/0520/173505_a40a0c30_134575.png "简易OCR文字识别工具")
+![输入图片说明](https://raw.githubusercontent.com/ago88/aardio-ocr/master/res/introduce.png "简易OCR文字识别工具")
 
 #### 代码说明
 1.  PrScrn.dll 为微信截图动态链接库，可直接将PC微信目录下此文件拷贝过来使用，已打包到应用中
