@@ -1,0 +1,52 @@
+﻿//百度翻译
+import web.rest.jsonLiteClient;
+
+class translate {  
+    ctor(SecretId,SecretKey){
+        this = http : ..web.rest.jsonLiteClient()
+        this.SecretId = SecretId;
+        this.SecretKey = SecretKey;
+    };
+    
+    fromlang = function(queryStr){
+    	var result,err = this.get("http://fanyi.baidu.com/langdetect",{query=queryStr});
+    	if(!result[["lan"]]) return null,"检测失败";
+    	var lang = "zh";
+		if (result[["lan"]]=="zh"){
+			lang = "en"
+		}
+    	return lang;
+    }
+    
+    //百度句子翻译
+    baidu = function(queryStr){ 
+        salt = tostring( tonumber(time.now()) );
+		var result,err = this.post("http://api.fanyi.baidu.com/api/trans/vip/translate",{
+        	q = queryStr;
+        	from = "auto";  
+        	to = this.fromlang(queryStr);
+        	appid = this.SecretId;
+        	salt = salt;
+        	sign = crypt.md5(this.SecretId ++ queryStr ++ salt ++ this.SecretKey,false);
+    	})
+        if(!result.trans_result[1]) return null,"查询失败";
+        
+        return result.trans_result[1].dst; 
+    }
+ 
+}
+
+namespace translate{
+    import crypt;
+	import inet.whttp;
+
+	crypt = ..crypt;
+	time = ..time;
+	table = ..table;	
+}
+
+/**intellisense(!translate)
+translate.baidu = 百度翻译支持库,\n文档：http://fanyi-api.baidu.com/api/trans/product/apidoc
+translate(.(ID,密钥) = 创建翻译支持库
+translate.baidu() = !bdTranslate.
+end intellisense**/

@@ -1,0 +1,206 @@
+import win.ui;
+import win.ui.atom;
+import fonts.fontAwesome;
+import win.clip;
+import win.dlg.message;
+import fsys.ini;
+import fsys;
+import zbar;
+/*DSG{{*/
+mainForm = win.form(text="snipOCR";right=599;bottom=399;bgcolor=16777215;border="none";max=false)
+mainForm.add(
+bk={cls="bk";text="简易百度OCR文字识别工具";left=0;top=0;right=600;bottom=28;background="\res\banner.jpg";color=16777215;font=LOGFONT(h=-16;name='宋体';weight=700);z=1};
+btnClean={cls="plus";text='\uF1F8';left=53;top=33;right=89;bottom=69;border={radius=6};color=2368548;font=LOGFONT(h=-29;name='FontAwesome');notify=1;z=4};
+btnCopy={cls="plus";text='\uF24D';left=96;top=33;right=132;bottom=69;border={radius=6};color=2368548;font=LOGFONT(h=-29;name='FontAwesome');notify=1;z=5};
+btnOcr={cls="plus";text='\uF0C4';left=9;top=33;right=45;bottom=69;border={radius=6};color=2368548;font=LOGFONT(h=-29;name='FontAwesome');notify=1;z=3};
+btnQrcode={cls="plus";text='\uF029';left=184;top=33;right=220;bottom=69;border={radius=6};color=2368548;font=LOGFONT(h=-29;name='FontAwesome');notify=1;z=11};
+btnSet={cls="plus";text='\uF013';left=556;top=34;right=592;bottom=70;border={radius=6};color=2368548;dr=1;font=LOGFONT(h=-16;name='FontAwesome');notify=1;z=6};
+btnTrans={cls="plus";text='\uF1AB';left=140;top=33;right=176;bottom=69;border={radius=6};color=2368548;font=LOGFONT(h=-29;name='FontAwesome');notify=1;z=10};
+chkEnableLinefeed={cls="plus";text="关闭换行";left=365;top=37;right=455;bottom=67;align="left";dl=1;dt=1;font=LOGFONT(h=-14);iconStyle={align="left";font=LOGFONT(h=-15;name='FontAwesome')};iconText='\uF0C8';notify=1;textPadding={left=24};z=7};
+chkHide={cls="plus";text="截图隐藏";left=269;top=37;right=359;bottom=67;align="left";dl=1;dt=1;font=LOGFONT(h=-14);iconStyle={align="left";font=LOGFONT(h=-15;name='FontAwesome')};iconText='\uF0C8';notify=1;textPadding={left=24};z=9};
+chkTopmost={cls="plus";text="窗口置顶";left=461;top=37;right=551;bottom=67;align="left";dl=1;dt=1;font=LOGFONT(h=-14);iconStyle={align="left";font=LOGFONT(h=-15;name='FontAwesome')};iconText='\uF0C8';notify=1;textPadding={left=24};z=8};
+edtResult={cls="edit";left=8;top=75;right=592;bottom=391;edge=1;font=LOGFONT(h=-16;name='宋体');multiline=1;vscroll=1;z=2}
+)
+/*}}*/
+
+var atom,hwnd/*冲突窗口的句柄,该函数会自动激活此窗口*/ = mainForm.atom("DB0BDB54-F944-4609-8A1A-25CBAE612166");
+if(!atom){
+	/*为窗口设置原子值可以避免一个程序重复运行多个实例*/
+	win.quitMessage();	return;
+}
+
+//窗体接受拖放
+::Shell32.DragAcceptFiles(mainForm.hwnd,true);
+
+import style;
+mainForm.btnOcr.skin(style.icon)
+mainForm.btnClean.skin(style.icon)
+mainForm.btnCopy.skin(style.icon)
+mainForm.btnTrans.skin(style.icon)
+mainForm.btnQrcode.skin(style.icon)
+mainForm.btnSet.skin(style.icon)
+mainForm.chkHide.skin(style.checkBox)
+mainForm.chkEnableLinefeed.skin(style.checkBox)
+mainForm.chkTopmost.skin(style.checkBox)
+mainForm.chkHide.checked = true;
+
+import win.ui.simpleWindow2;
+var simpleWindow2 = win.ui.simpleWindow2(mainForm);
+
+import win.ui.tooltip; 
+var tooltipCtrl = win.ui.tooltip( mainForm );//在窗口上创建tooltip控件 
+tooltipCtrl.addTool(mainForm.btnOcr,"截图识别")
+tooltipCtrl.addTool(mainForm.btnClean,"清空")
+tooltipCtrl.addTool(mainForm.btnCopy,"复制")
+tooltipCtrl.addTool(mainForm.btnTrans,"翻译")
+tooltipCtrl.addTool(mainForm.btnQrcode,"截图识别二维码")
+tooltipCtrl.addTool(mainForm.btnSet,"密钥设置")
+
+var ini=fsys.ini(fsys.getSpecial(0x1a /*_CSIDL_APPDATA*/)++"\simpleOCR.ini");
+var sec = ini.getSection("config");
+if(!sec.apikey || !sec.secretkey || !sec.transid || !sec.transkey){
+	sec.apikey = "";
+	sec.secretkey = "";
+	sec.transid = ""; 
+	sec.transkey = ""; 	
+	sec.save()
+}
+mainForm.apikey = ini.read("config","apikey");
+mainForm.secretkey = ini.read("config","secretkey");
+mainForm.transid = ini.read("config","transid");
+mainForm.transkey = ini.read("config","transkey");
+
+var orc = function(mainForm,image,data){
+    import baidu.client;
+    var http =  baidu.client();
+ 	http.setAuth( data.apikey,data.secretkey )
+        
+    //OCR识别接口
+    var ocr = http.api("https://aip.baidubce.com/rest/2.0/ocr/v1/");
+    var result = ocr.accurate_basic(image = image);
+    
+    if(result.words_result){
+    	for i,v in table.eachIndex(result.words_result){	
+    		if(mainForm.chkEnableLinefeed.checked){
+    			mainForm.edtResult.appendText(v.words);
+    		} else {
+    			mainForm.edtResult.appendText(v.words++'\r\n');
+    		}
+    	}    	
+    } else {
+    	mainForm.msgErr("密钥错误，认证失败！",1000)
+    }
+    
+    mainForm.btnOcr.disabledText = null;	
+}
+
+mainForm.btnSet.oncommand = function(id,event){
+	var frmSet = win.loadForm("\dlg\set.aardio");
+	var username = frmSet.doModal();
+}
+
+ocrResult = function(bmp){   
+    import gdip.bitmap
+    var img  = gdip.bitmap(bmp);
+    var buffer = img.saveToBuffer();
+    
+    if(#mainForm.apikey && #mainForm.secretkey){
+    	mainForm.btnOcr.disabledText = '\uF110';
+    	thread.invoke( orc,mainForm,buffer,{apikey=mainForm.apikey;secretkey=mainForm.secretkey} );
+    } else {
+    	mainForm.msgErr("密钥未配置,请配置保存后重启软件",1000)
+    }
+}
+
+var dll = raw.loadDll($"\PrScrn.dll");
+mainForm.btnOcr.oncommand = function(id,event){
+	if(mainForm.chkHide.checked){
+		mainForm.show(false);
+		dll.PrScrn();
+		mainForm.show(true);
+	} else {
+		dll.PrScrn()
+	}
+    var hbmp = win.clip.readBitmap();
+    if(!hbmp){
+		mainForm.msgErr("剪贴板中没有图像,请先复制图像!",1000)
+    	mainForm.btnOcr.disabledText = null;
+    	return;
+    }	
+	ocrResult(hbmp);
+}
+
+var scanner = zbar.scanner();
+scanner.config('qrcode.enable');
+mainForm.btnQrcode.oncommand = function(id,event){
+	if(mainForm.chkHide.checked){
+		mainForm.show(false);
+		dll.PrScrn();
+		mainForm.show(true);
+	} else {
+		dll.PrScrn()
+	}
+    var hbmp = win.clip.readBitmap();
+    if(!hbmp){
+		mainForm.msgErr("剪贴板中没有图像,请先复制图像!",1000)
+    	mainForm.btnOcr.disabledText = null;
+    	return;
+    }else {
+    	var bmp = gdip.bitmap(hbmp)
+		scanner.scanBitmap(bmp,function(typeName,data){
+			mainForm.edtResult.appendText(data);
+		})
+    }
+}
+
+//拖放会触发onDropFiles事件
+mainForm.onDropFiles = function(files){
+	var suffix = fsys.getExtensionName(files[1])	
+	select(suffix) {
+		case "bmp","jpg","jpeg","gif","png" {
+			ocrResult(files[1]);	
+		}
+		else {
+			mainForm.msgErr("非常规图片文件，无法识别",300);
+			return; 
+		}
+	}
+}
+
+mainForm.btnClean.oncommand = function(id,event){
+	mainForm.edtResult.text = "";
+}
+
+mainForm.btnCopy.oncommand = function(id,event){
+	win.clip.write(mainForm.edtResult.text);
+	mainForm.msgOk("复制完成",500)
+}
+
+mainForm.chkTopmost.oncommand = function(id,event){
+	if(mainForm.chkTopmost.checked){
+		win.setTopmost(mainForm.hwnd,true)
+	} else {
+		win.setTopmost(mainForm.hwnd,false)	
+	}
+}
+
+trans = function(mainForm,str,data){
+	import translate;
+	var bdfy = translate(data.id,data.secretkey);
+	mainForm.edtResult.appendText( bdfy.baidu(str) );
+	mainForm.btnTrans.disabledText = null;    
+}    
+
+mainForm.btnTrans.oncommand = function(id,event){
+    var str = mainForm.edtResult.text;
+	if(#str){
+		mainForm.edtResult.appendText('\r\n译文(Translation):--------------------\r\n');
+		str = string.trim(string.replace(str,'<\r\n>',' '));
+		
+    	mainForm.btnTrans.disabledText = '\uF110';
+    	thread.invoke( trans,mainForm,str,{id=mainForm.transid;secretkey=mainForm.transkey} );
+	}
+}
+
+mainForm.show();
+return win.loopMessage();
